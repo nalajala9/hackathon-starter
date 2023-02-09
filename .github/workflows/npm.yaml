@@ -1,23 +1,63 @@
-name: Node.js CI
+name: CI/CD Pipeline
 
-on:
+on: 
   push:
-    branches: master
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_ENV: test
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: '10.x'
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-      - name: Install dependencies
-      - run: npm ci
-      - run: npm run build --if-present
-      - run: npm test
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 10
+
+    - name: Install dependencies
+      run: |
+        npm ci
+
+    - name: Build
+      run: |
+        npm run build
+
+    - name: Test
+      run: |
+        npm test
+
+    - name: Setup Docker
+      uses: docker/setup-docker@v2
+
+    - name: Build Docker Image
+      run: |
+        docker build -t sahat/hackathon-starter:${{ env.TAG }} .
+
+    # - name: Publish Docker Image
+    #   uses: docker/publish-docker-image@v2
+    #   with:
+    #     push: true
+    #     tags: sahat/hackathon-starter:${{ env.TAG }}
+
+    - name: Setup Trivy
+      uses: aquasecurity/trivy-action@v1
+
+    - name: Scan Docker Image
+      run: |
+        trivy --exit-code 1 sahat/hackathon-starter:${{ env.TAG }}
+
+    # - name: Setup SonarCube Scanner
+    #   uses: sonarsource/sonarcloud-github-action@master
+    #   with:
+    #     sonar.projectKey: sahat/hackathon-starter
+    #     sonar.organization: sahat
+    #     sonar.host.url: https://sonarcloud.io
+    #     sonar.login: ${{ secrets.SONAR_TOKEN }}
